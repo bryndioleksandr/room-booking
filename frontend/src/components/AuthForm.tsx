@@ -1,21 +1,21 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { setUser } from "../config/config";
+import { setUser, type User as AppUser } from "../config/config";
 import { loginUser, registerUser } from "../services/auth";
 import { useDispatch } from "../redux/store";
 import { dispUser } from "../redux/slices/user";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 
 interface AuthFormProps {
-    onAuthSuccess: (user: any) => void;
+    onAuthSuccess: (user: AppUser) => void;
 }
 
 const AuthModal: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
     const [isLogin, setIsLogin] = useState<boolean>(true);
     const dispatch = useDispatch();
     const modalRef = useRef<HTMLDivElement | null>(null);
+    const [loading, setLoading] = useState(false);
 
     const notifyError = (message: string) => toast.error(message);
     const notifySuccess = (message: string) => toast.success(message);
@@ -51,6 +51,7 @@ const AuthModal: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
     const handleLogin = async (): Promise<void> => {
         if (!validateForm()) return;
 
+        setLoading(true);
         try {
             const data = await loginUser(email, password);
 
@@ -62,14 +63,18 @@ const AuthModal: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
             dispatch(dispUser(data));
             notifySuccess("З поверненням!");
             onAuthSuccess(data);
-        } catch (err: any) {
-            notifyError(err.message || "Сталася помилка");
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : undefined;
+            notifyError(message || "Сталася помилка");
             console.error("Login error", err);
+        } finally {
+            setLoading(false);
         }
     };
 
     const handleRegister = async (): Promise<void> => {
         if (!validateForm()) return;
+        setLoading(true);
         try {
             const data = await registerUser({ name, email, password });
             console.log('data reg is:', data);
@@ -77,14 +82,17 @@ const AuthModal: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
             dispatch(dispUser(data));
             notifySuccess("Реєстрація успішна!");
             onAuthSuccess(data);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Register error", err);
-            notifyError(err.message || "Сталася помилка");
+            const message = err instanceof Error ? err.message : undefined;
+            notifyError(message || "Сталася помилка");
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="mx-20">
+        <div className="w-full">
             <div className="relative bg-white shadow-2xl overflow-hidden min-h-[500px] flex flex-col rounded-3xl" ref={modalRef}>
                 <div className="absolute inset-0 rounded-3xl p-[2px] bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500">
                     <div className="absolute inset-0 rounded-3xl bg-white"></div>
@@ -167,10 +175,18 @@ const AuthModal: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                                     </label>
 
                                     <button
-                                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2.5 px-4 rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200 shadow-md hover:shadow-lg"
+                                        disabled={loading}
+                                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2.5 px-4 rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
                                         onClick={handleLogin}
                                     >
-                                        Увійти
+                                        {loading ? (
+                                            <span className="inline-flex items-center justify-center gap-2">
+                                                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                                                Зачекайте...
+                                            </span>
+                                        ) : (
+                                            "Увійти"
+                                        )}
                                     </button>
                                 </div>
                             ) : (
@@ -244,10 +260,18 @@ const AuthModal: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                                     </label>
 
                                     <button
-                                        className="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-2.5 px-4 rounded-lg text-sm font-semibold hover:from-green-700 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-md hover:shadow-lg"
+                                        disabled={loading}
+                                        className="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-2.5 px-4 rounded-lg text-sm font-semibold hover:from-green-700 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
                                         onClick={handleRegister}
                                     >
-                                        Зареєструватися
+                                        {loading ? (
+                                            <span className="inline-flex items-center justify-center gap-2">
+                                                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                                                Зачекайте...
+                                            </span>
+                                        ) : (
+                                            "Зареєструватися"
+                                        )}
                                     </button>
                                 </div>
                             )}
@@ -270,7 +294,6 @@ const AuthModal: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                     </div>
                 </div>
             </div>
-            <ToastContainer/>
         </div>
     );
 };

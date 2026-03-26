@@ -6,7 +6,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
 }

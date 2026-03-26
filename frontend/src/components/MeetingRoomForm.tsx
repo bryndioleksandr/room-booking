@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createMeetingRoom, updateMeetingRoom } from '../services/meetingRoom';
 import { toast } from 'react-toastify';
+import Modal from "./ui/Modal";
 
 interface MeetingRoom {
     id: number;
@@ -63,32 +64,23 @@ const MeetingRoomForm: React.FC<MeetingRoomFormProps> = ({ room, onClose, onSucc
                 toast.success('Meeting room created successfully');
             }
             onSuccess();
-        } catch (error: any) {
-            toast.error(`Failed to ${isEditing ? 'update' : 'create'} meeting room: ${error.message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : undefined;
+            toast.error(
+                `Failed to ${isEditing ? 'update' : 'create'} meeting room: ${message || 'Unknown error'}`
+            );
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                            {isEditing ? 'Edit Meeting Room' : 'Add New Meeting Room'}
-                        </h3>
-                        <button
-                            onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
+        <Modal
+            title={isEditing ? 'Edit Meeting Room' : 'Add New Meeting Room'}
+            onClose={onClose}
+            className="max-w-md"
+        >
+            <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                                 Room Name *
@@ -151,10 +143,8 @@ const MeetingRoomForm: React.FC<MeetingRoomFormProps> = ({ room, onClose, onSucc
                                 )}
                             </button>
                         </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+            </form>
+        </Modal>
     );
 };
 

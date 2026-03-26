@@ -26,8 +26,12 @@ export const loginUser = async (email: string, password: string): Promise<Respon
     try {
         const { data } = await api.post<Response>("/auth/login", {email, password});
         return data.user;
-    } catch (error: any) {
-        throw new Error(error.response?.data?.msg || "Щось пішло не так");
+    } catch (error: unknown) {
+        const message =
+            typeof error === "object" && error !== null && "response" in error
+                ? (error as { response?: { data?: { msg?: string } } }).response?.data?.msg
+                : undefined;
+        throw new Error(message || "Щось пішло не так");
     }
 };
 

@@ -45,17 +45,21 @@ const Dashboard: React.FC = () => {
                         try {
                             const participants = await listParticipants(booking.id.toString());
                             results[booking.id] = participants;
-                        } catch (error: any) {
+                        } catch (error: unknown) {
+                            const message = error instanceof Error ? error.message : undefined;
                             console.error(`Failed to fetch participants for booking ${booking.id}:`, error);
-                            toast.error(`Failed to fetch participants for booking ${booking.id}: ${error.message}`);
+                            toast.error(
+                                `Failed to fetch participants for booking ${booking.id}: ${message || "Unknown error"}`
+                            );
                             results[booking.id] = [];
                         }
                     })
                 );
 
                 setParticipantsByBooking(results);
-            } catch (error: any) {
-                toast.error("Something went wrong while fetching participants: " + error.message);
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : undefined;
+                toast.error("Something went wrong while fetching participants: " + (message || "Unknown error"));
             }
         };
 
@@ -69,8 +73,9 @@ const Dashboard: React.FC = () => {
             setLoadingBookings(true);
             const data = await getBookings();
             setBookings(data);
-        } catch (error: any) {
-            toast.error('Failed to fetch bookings: ' + error.message);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : undefined;
+            toast.error('Failed to fetch bookings: ' + (message || 'Unknown error'));
         } finally {
             setLoadingBookings(false);
         }
@@ -156,34 +161,46 @@ const Dashboard: React.FC = () => {
                                             <p className="text-gray-500 text-center py-4">No upcoming bookings</p>
                                         ) : (
                                             <div className="grid gap-4">
-                                                {getUpcomingBookings().map((booking) => (
-                                                    <div key={booking.id} className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                                        <div className="flex justify-between items-start">
-                                                            <div>
-                                                                <h4 className="font-medium text-green-900">
-                                                                    {booking.MeetingRoom?.name || `Room ${booking.roomId}`}
-                                                                </h4>
-                                                                <p className="text-green-700 text-sm mt-1">{booking.description}</p>
-                                                                <p className="text-green-700 text-sm mt-1">
-                                                                    Users: {(participantsByBooking[booking.id] || [])
-                                                                    .map((p) => p.name)
-                                                                    .join(", ")}
-                                                                </p>
-                                                                <div className="text-green-600 text-sm mt-2">
-                                                                    <span
-                                                                        className="font-medium">Start:</span> {formatDateTime(booking.startTime)}
+                                                {getUpcomingBookings().map((booking) => {
+                                                    const participants = participantsByBooking[booking.id];
+                                                    return (
+                                                        <div
+                                                            key={booking.id}
+                                                            className="bg-green-50 border border-green-200 rounded-lg p-4"
+                                                        >
+                                                            <div className="flex justify-between items-start">
+                                                                <div>
+                                                                    <h4 className="font-medium text-green-900">
+                                                                        {booking.MeetingRoom?.name || `Room ${booking.roomId}`}
+                                                                    </h4>
+                                                                    <p className="text-green-700 text-sm mt-1">{booking.description}</p>
+
+                                                                    {participants === undefined ? (
+                                                                        <p className="text-green-700 text-sm mt-1">Loading participants...</p>
+                                                                    ) : participants.length === 0 ? (
+                                                                        <p className="text-green-700 text-sm mt-1">Users: none</p>
+                                                                    ) : (
+                                                                        <p className="text-green-700 text-sm mt-1">
+                                                                            Users: {participants
+                                                                                .map((p) => p.name)
+                                                                                .join(", ")}
+                                                                        </p>
+                                                                    )}
+
+                                                                    <div className="text-green-600 text-sm mt-2">
+                                                                        <span className="font-medium">Start:</span> {formatDateTime(booking.startTime)}
+                                                                    </div>
+                                                                    <div className="text-green-600 text-sm">
+                                                                        <span className="font-medium">End:</span> {formatDateTime(booking.endTime)}
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-green-600 text-sm">
-                                                                    <span
-                                                                        className="font-medium">End:</span> {formatDateTime(booking.endTime)}
-                                                                </div>
+                                                                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                                                    Upcoming
+                                                                </span>
                                                             </div>
-                                                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                                                Upcoming
-                                                            </span>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
@@ -194,27 +211,44 @@ const Dashboard: React.FC = () => {
                                             <p className="text-gray-500 text-center py-4">No past bookings</p>
                                         ) : (
                                             <div className="grid gap-4">
-                                                {getPastBookings().map((booking) => (
-                                                    <div key={booking.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                                        <div className="flex justify-between items-start">
-                                                            <div>
-                                                                <h4 className="font-medium text-gray-900">
-                                                                    {booking.MeetingRoom?.name || `Room ${booking.roomId}`}
-                                                                </h4>
-                                                                <p className="text-gray-700 text-sm mt-1">{booking.description}</p>
-                                                                <div className="text-gray-600 text-sm mt-2">
-                                                                    <span className="font-medium">Start:</span> {formatDateTime(booking.startTime)}
+                                                {getPastBookings().map((booking) => {
+                                                    const participants = participantsByBooking[booking.id];
+                                                    return (
+                                                        <div
+                                                            key={booking.id}
+                                                            className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+                                                        >
+                                                            <div className="flex justify-between items-start">
+                                                                <div>
+                                                                    <h4 className="font-medium text-gray-900">
+                                                                        {booking.MeetingRoom?.name || `Room ${booking.roomId}`}
+                                                                    </h4>
+                                                                    <p className="text-gray-700 text-sm mt-1">{booking.description}</p>
+
+                                                                    {participants === undefined ? (
+                                                                        <p className="text-gray-600 text-sm mt-1">Loading participants...</p>
+                                                                    ) : participants.length === 0 ? (
+                                                                        <p className="text-gray-600 text-sm mt-1">Users: none</p>
+                                                                    ) : (
+                                                                        <p className="text-gray-600 text-sm mt-1">
+                                                                            Users: {participants.map((p) => p.name).join(", ")}
+                                                                        </p>
+                                                                    )}
+
+                                                                    <div className="text-gray-600 text-sm mt-2">
+                                                                        <span className="font-medium">Start:</span> {formatDateTime(booking.startTime)}
+                                                                    </div>
+                                                                    <div className="text-gray-600 text-sm">
+                                                                        <span className="font-medium">End:</span> {formatDateTime(booking.endTime)}
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-gray-600 text-sm">
-                                                                    <span className="font-medium">End:</span> {formatDateTime(booking.endTime)}
-                                                                </div>
+                                                                <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">
+                                                                    Completed
+                                                                </span>
                                                             </div>
-                                                            <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">
-                                                                Completed
-                                                            </span>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
