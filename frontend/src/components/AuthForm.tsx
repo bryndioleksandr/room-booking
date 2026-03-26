@@ -97,8 +97,8 @@ const AuthModal: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                             <button
                                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
                                     isLogin
-                                        ? 'bg-white bg-opacity-25 text-white shadow-lg backdrop-blur-sm'
-                                        : 'text-blue-100 hover:text-white hover:bg-white hover:bg-opacity-20'
+                                        ? 'bg-white/25 text-white shadow-lg backdrop-blur-sm'
+                                        : 'text-blue-100 hover:text-white hover:bg-white/20'
                                 }`}
                                 onClick={() => setIsLogin(true)}
                             >
@@ -107,8 +107,8 @@ const AuthModal: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                             <button
                                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
                                     !isLogin
-                                        ? 'bg-white bg-opacity-25 text-white shadow-lg backdrop-blur-sm'
-                                        : 'text-blue-100 hover:text-white hover:bg-white hover:bg-opacity-20'
+                                        ? 'bg-white/25 text-white shadow-lg backdrop-blur-sm'
+                                        : 'text-blue-100 hover:text-white hover:bg-white/20'
                                 }`}
                                 onClick={() => setIsLogin(false)}
                             >

@@ -48,7 +48,7 @@ export const getMeetingRoomById = async (req: Request, res: Response) => {
         const {roomId} = req.params;
         const room = await MeetingRoom.findByPk(roomId);
         if (!room) return res.status(404).json({msg: "Room not found"});
-        res.json(room);
+        res.json(room);``
     } catch (error: any) {
         return res.status(500).json({msg: error.message});
     }
