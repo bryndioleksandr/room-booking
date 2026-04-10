@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createBooking } from '../services/booking';
+import { testRoomPayment } from '../services/payment';
 import { getUsers } from '../services/user';
 import { toast } from 'react-toastify';
 import Modal from "./ui/Modal";
@@ -31,7 +32,18 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
     const [participantIds, setParticipantIds] = useState<number[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(false);
+    const [requiresPayment, setRequiresPayment] = useState(false);
     const [errors, setErrors] = useState<{ startTime?: string; endTime?: string; description?: string }>({});
+
+    const bookingDurationHours = (() => {
+        if (!startTime || !endTime) return 0;
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+        const diffMs = end.getTime() - start.getTime();
+        if (Number.isNaN(diffMs) || diffMs <= 0) return 0;
+        return diffMs / (60 * 60 * 1000);
+    })();
+    const estimatedAmount = Number((bookingDurationHours * 15).toFixed(2));
 
     useEffect(() => {
         fetchUsers();
@@ -104,6 +116,19 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
             if (!currentUserId || Number.isNaN(currentUserId)) {
                 toast.error("Please sign in again.");
                 return;
+            }
+
+            if (requiresPayment) {
+                const paymentResult = await testRoomPayment({
+                    roomId: room.id,
+                    userId: currentUserId,
+                    startTime: new Date(startTime),
+                    endTime: new Date(endTime),
+                });
+
+                toast.success(
+                    `Test payment success: ${paymentResult.amount} ${paymentResult.currency} (${paymentResult.transactionId})`
+                );
             }
 
             await createBooking({
@@ -241,6 +266,26 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
                                     </div>
                                 )}
                             </div>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-md p-3 bg-gray-50">
+                            <div className="flex items-center justify-between gap-3">
+                                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={requiresPayment}
+                                        onChange={(e) => setRequiresPayment(e.target.checked)}
+                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    />
+                                    Test payment for room booking
+                                </label>
+                                <span className="text-sm text-gray-600">
+                                    Estimate: {estimatedAmount} USD
+                                </span>
+                            </div>
+                            <p className="mt-2 text-xs text-gray-500">
+                                Uses mock API only. If payment fails, booking will not be created.
+                            </p>
                         </div>
 
                         <div className="flex space-x-3 pt-4">
