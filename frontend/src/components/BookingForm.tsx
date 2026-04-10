@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createBooking } from '../services/booking';
+import { testRoomPayment } from '../services/payment';
 import { getUsers } from '../services/user';
 import { toast } from 'react-toastify';
+import Modal from "./ui/Modal";
+import { useSelector } from '../redux/store';
 
 interface MeetingRoom {
     id: number;
@@ -22,13 +25,25 @@ interface BookingFormProps {
 }
 
 const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) => {
+    const currentUser = useSelector((state) => state.user.user);
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const [description, setDescription] = useState('');
     const [participantIds, setParticipantIds] = useState<number[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(false);
+    const [requiresPayment, setRequiresPayment] = useState(false);
     const [errors, setErrors] = useState<{ startTime?: string; endTime?: string; description?: string }>({});
+
+    const bookingDurationHours = (() => {
+        if (!startTime || !endTime) return 0;
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+        const diffMs = end.getTime() - start.getTime();
+        if (Number.isNaN(diffMs) || diffMs <= 0) return 0;
+        return diffMs / (60 * 60 * 1000);
+    })();
+    const estimatedAmount = Number((bookingDurationHours * 15).toFixed(2));
 
     useEffect(() => {
         fetchUsers();
@@ -45,8 +60,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
         try {
             const data = await getUsers();
             setUsers(data);
-        } catch (error: any) {
-            toast.error('Failed to fetch users: ' + error.message);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : undefined;
+            toast.error('Failed to fetch users: ' + (message || 'Unknown error'));
         }
     };
 
@@ -96,8 +112,24 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
 
         setLoading(true);
         try {
-            // For now, using a hardcoded user ID - in a real app, this would come from auth context
-            const currentUserId = 1; // This should come from your auth state
+            const currentUserId = currentUser ? Number(currentUser.id) : null;
+            if (!currentUserId || Number.isNaN(currentUserId)) {
+                toast.error("Please sign in again.");
+                return;
+            }
+
+            if (requiresPayment) {
+                const paymentResult = await testRoomPayment({
+                    roomId: room.id,
+                    userId: currentUserId,
+                    startTime: new Date(startTime),
+                    endTime: new Date(endTime),
+                });
+
+                toast.success(
+                    `Test payment success: ${paymentResult.amount} ${paymentResult.currency} (${paymentResult.transactionId})`
+                );
+            }
 
             await createBooking({
                 roomId: room.id,
@@ -109,8 +141,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
             });
 
             onSuccess();
-        } catch (error: any) {
-            toast.error(`Failed to book room: ${error.message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : undefined;
+            toast.error(`Failed to book room: ${message || 'Unknown error'}`);
         } finally {
             setLoading(false);
         }
@@ -125,25 +158,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-900">Book Meeting Room</h3>
-                            <p className="text-sm text-gray-600">{room.name}</p>
-                        </div>
-                        <button
-                            onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
+        <Modal
+            title="Book Meeting Room"
+            description={room.name}
+            onClose={onClose}
+            className="max-w-lg"
+        >
+            <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-1">
@@ -202,16 +223,35 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Participants (Optional)
-                            </label>
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Participants (Optional)
+                                </label>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm text-gray-600">
+                                        Selected: {participantIds.length}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setParticipantIds([])}
+                                        disabled={participantIds.length === 0}
+                                        className="text-sm text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-3">
                                 {users.length === 0 ? (
                                     <p className="text-gray-500 text-sm">No users available</p>
                                 ) : (
                                     <div className="space-y-2">
                                         {users.map((user) => (
-                                            <label key={user.id} className="flex items-center space-x-2 cursor-pointer">
+                                            <label
+                                                key={user.id}
+                                                className="flex items-center space-x-2 cursor-pointer"
+                                            >
                                                 <input
                                                     type="checkbox"
                                                     checked={participantIds.includes(user.id)}
@@ -226,6 +266,26 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
                                     </div>
                                 )}
                             </div>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-md p-3 bg-gray-50">
+                            <div className="flex items-center justify-between gap-3">
+                                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={requiresPayment}
+                                        onChange={(e) => setRequiresPayment(e.target.checked)}
+                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    />
+                                    Test payment for room booking
+                                </label>
+                                <span className="text-sm text-gray-600">
+                                    Estimate: {estimatedAmount} USD
+                                </span>
+                            </div>
+                            <p className="mt-2 text-xs text-gray-500">
+                                Uses mock API only. If payment fails, booking will not be created.
+                            </p>
                         </div>
 
                         <div className="flex space-x-3 pt-4">
@@ -252,10 +312,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ room, onClose, onSuccess }) =
                                 )}
                             </button>
                         </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+            </form>
+        </Modal>
     );
 };
 
